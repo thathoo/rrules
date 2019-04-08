@@ -1,37 +1,20 @@
-## Welcome to GitHub Pages
+## Expand RRULEs via API
 
-You can use the [editor on GitHub](https://github.com/thathoo/rrules/edit/master/index.md) to maintain and preview the content for your website in Markdown files.
-
-Whenever you commit to this repository, GitHub Pages will run [Jekyll](https://jekyllrb.com/) to rebuild the pages in your site, from the content in your Markdown files.
-
-### Markdown
-
-Markdown is a lightweight and easy-to-use syntax for styling your writing. It includes conventions for
+Get individual occurrences of any RRULE directly via API. The API backend is deployed on AWS Lambda, and relies on the [ruby-rrule](https://github.com/square/ruby-rrule) gem
 
 ```markdown
-Syntax highlighted code block
-
-# Header 1
-## Header 2
-### Header 3
-
-- Bulleted
-- List
-
-1. Numbered
-2. List
-
-**Bold** and _Italic_ and `Code` text
-
-[Link](url) and ![Image](src)
+curl -X POST https://api.rrules.com/rrule_expand -d '{"rrule":"FREQ=DAILY;COUNT=3", "start_time":"2019-03-05 00:46:42 -0800", "end_time":"2019-06-05 00:46:42 -0800"}'
 ```
 
-For more details see [GitHub Flavored Markdown](https://guides.github.com/features/mastering-markdown/).
+### Query Parameters 
 
-### Jekyll Themes
-
-Your Pages site will use the layout and styles from the Jekyll theme you have selected in your [repository settings](https://github.com/thathoo/rrules/settings). The name of this theme is saved in the Jekyll `_config.yml` configuration file.
+param | Details | Required
+------------ | ------------- | -------------
+rrule | Pass in an RRULE that conforms to [RFC 5546](https://tools.ietf.org/html/rfc5545) | Yes
+start_time | Pass in a start_time that can be parsed by Ruby's `Time.parse` [method](https://ruby-doc.org/stdlib-2.1.1/libdoc/time/rdoc/Time.html#method-c-parse) | Yes
+end_time | Pass in a start_time that can be parsed by Ruby's `Time.parse` [method](https://ruby-doc.org/stdlib-2.1.1/libdoc/time/rdoc/Time.html#method-c-parse) | No (defaults to `1.year.from_now`)
+time_zone | Example: `America/Los_Angeles` | No (defaults to `UTC`)
 
 ### Support or Contact
 
-Having trouble with Pages? Check out our [documentation](https://help.github.com/categories/github-pages-basics/) or [contact support](https://github.com/contact) and we’ll help you sort it out.
+Having trouble with the API? Please create an issue and I will do my best to be responsive, quickly. 

@@ -1,6 +1,6 @@
 ## Expand RRULEs via API
 
-Get individual occurrences of any RRULE directly via API (api.rrules.com). The API backend is deployed on AWS Lambda, and relies on the [ruby-rrule](https://github.com/square/ruby-rrule) gem
+Get individual occurrences of any RRULE directly via API (api.rrules.com). The API backend is deployed on AWS Lambda, and relies on the [ruby-rrule](https://github.com/square/ruby-rrule) gem. Try it yourself, see example below!
 
 ```markdown
 curl -X POST https://api.rrules.com/rrule_expand -d '{"rrule":"FREQ=DAILY;COUNT=3", "start_time":"2019-03-05 00:46:42 -0800", "end_time":"2019-06-05 00:46:42 -0800"}'

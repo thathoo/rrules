@@ -10,7 +10,7 @@ curl -X POST https://api.rrules.com/rrule_expand -d '{"rrule":"FREQ=DAILY;COUNT=
 
 param | Details | Required
 ------------ | ------------- | -------------
-rrule | Pass in an RRULE that conforms to [RFC 5546](https://tools.ietf.org/html/rfc5545) | Yes
+rrule | Pass in an RRULE that conforms to [RFC 5545](https://tools.ietf.org/html/rfc5545) | Yes
 start_time | Pass in a start_time that can be parsed by Ruby's `Time.parse` [method](https://ruby-doc.org/stdlib-2.1.1/libdoc/time/rdoc/Time.html#method-c-parse) | Yes
 end_time | Pass in a start_time that can be parsed by Ruby's `Time.parse` [method](https://ruby-doc.org/stdlib-2.1.1/libdoc/time/rdoc/Time.html#method-c-parse) | No (defaults to `1.year.from_now`)
 time_zone | Example: `America/Los_Angeles` | No (defaults to `UTC`)

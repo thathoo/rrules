@@ -1,6 +1,9 @@
 source 'https://rubygems.org'
 
-gem 'rspec'
-gem 'webmock'
-gem 'awesome_print'
-gem 'rrule'
+ruby '>= 3.0'
+
+gem 'rrule', '~> 0.8'
+
+group :test do
+  gem 'rspec', '~> 3.13'
+end

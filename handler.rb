@@ -1,7 +1,9 @@
 require 'base64'
 require 'cgi'
+require 'date'
 require 'json'
 require 'time'
+require 'tzinfo'
 require 'rrule'
 
 DEFAULT_TIME_ZONE = 'UTC'
@@ -18,9 +20,9 @@ def rrule_expand(event:, context:)
   return json_response(400, error: 'missing_parameter', message: "Missing required parameter(s): #{missing.join(', ')}") if missing.any?
 
   now = Time.now.utc
-  start_time = parse_time(params['start_time'], 'start_time')
-  end_time = blank?(params['end_time']) ? now + DEFAULT_END_TIME_SECONDS : parse_time(params['end_time'], 'end_time')
   time_zone = blank?(params['time_zone']) ? DEFAULT_TIME_ZONE : params['time_zone']
+  start_time = parse_time(params['start_time'], 'start_time', time_zone)
+  end_time = blank?(params['end_time']) ? now + DEFAULT_END_TIME_SECONDS : parse_time(params['end_time'], 'end_time', time_zone)
 
   if end_time < start_time
     return json_response(422, error: 'invalid_time_range', message: 'end_time must be after start_time')
@@ -89,10 +91,29 @@ def normalize_hash(hash)
   end
 end
 
-def parse_time(value, field)
-  Time.parse(value.to_s)
-rescue ArgumentError
+def parse_time(value, field, time_zone = nil)
+  string = value.to_s
+  return Time.parse(string) if time_zone.nil? || explicit_time_zone?(string)
+
+  parsed = Date._parse(string)
+  return Time.parse(string) unless parsed.values_at(:year, :mon, :mday).all?
+
+  TZInfo::Timezone.get(time_zone).local_time(
+    parsed[:year],
+    parsed[:mon],
+    parsed[:mday],
+    parsed.fetch(:hour, 0),
+    parsed.fetch(:min, 0),
+    parsed.fetch(:sec, 0)
+  ).to_time
+rescue TZInfo::InvalidTimezoneIdentifier
+  raise ArgumentError, "Invalid Timezone: #{time_zone}"
+rescue ArgumentError, TypeError
   raise ArgumentError, "#{field} must be a parseable time"
+end
+
+def explicit_time_zone?(value)
+  value.match?(/(?:Z|[+-]\d{2}:?\d{2}|\b[A-Z]{2,4})\z/)
 end
 
 def blank?(value)

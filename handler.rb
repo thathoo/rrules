@@ -6,7 +6,10 @@ require 'rrule'
 
 DEFAULT_TIME_ZONE = 'UTC'
 DEFAULT_END_TIME_SECONDS = 365 * 24 * 60 * 60
+# Approximate range guard to keep recurrence expansion bounded.
 BOUNDARY_SECONDS = (100 * 365.25 * 24 * 60 * 60).to_i
+
+class InvalidJsonBody < StandardError; end
 
 def rrule_expand(event:, context:)
   params = request_params(event || {})
@@ -37,6 +40,8 @@ def rrule_expand(event:, context:)
   json_response(200, message: 'ok', occurrences: occurrences)
 rescue JSON::ParserError
   json_response(400, error: 'invalid_json', message: 'Request body must be valid JSON')
+rescue InvalidJsonBody => e
+  json_response(400, error: 'invalid_json', message: e.message)
 rescue RRule::InvalidRRule => e
   json_response(400, error: 'invalid_rrule', message: e.message)
 rescue ArgumentError => e
@@ -65,7 +70,7 @@ def parse_body(event)
     parsed = JSON.parse(body)
     return normalize_hash(parsed) if parsed.is_a?(Hash)
 
-    raise ArgumentError, 'JSON request body must be an object'
+    raise InvalidJsonBody, 'JSON request body must be an object'
   end
 
   CGI.parse(body).transform_values(&:first)

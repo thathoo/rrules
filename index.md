@@ -32,6 +32,12 @@ time_zone | Example: `America/Los_Angeles` | No (defaults to `UTC`)
 
 You can pass parameters in a JSON request body, a form-encoded request body, or the query string.
 
+If the same parameter is present in both the query string and request body, the request body value wins.
+
+### Response Contract
+
+Responses return an `occurrences` array of ISO 8601 UTC timestamps. Earlier versions of this API returned a comma-joined `rrules` string; clients should migrate to `occurrences`.
+
 ### Errors
 
 Error responses use a structured JSON body:
@@ -46,6 +52,8 @@ Error responses use a structured JSON body:
 Supported requests must stay within a 100 year boundary from the request time.
 
 ### Development
+
+Use Ruby 3.0 or newer.
 
 ```sh
 bundle install

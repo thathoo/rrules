@@ -1,3 +1,4 @@
+require 'base64'
 require 'json'
 require 'uri'
 
@@ -76,6 +77,66 @@ RSpec.describe '#rrule_expand' do
     ])
   end
 
+  it 'expands RRULEs from base64-encoded JSON request bodies' do
+    body = JSON.generate(
+      'rrule' => 'FREQ=DAILY;COUNT=2',
+      'start_time' => '2019-03-05 00:46:42 -0800',
+      'end_time' => '2019-03-07 00:46:42 -0800'
+    )
+
+    response = response_for(
+      'headers' => { 'Content-Type' => 'application/json' },
+      'isBase64Encoded' => true,
+      'body' => Base64.strict_encode64(body)
+    )
+
+    expect(response[:statusCode]).to eq(200)
+    expect(response[:body]['occurrences']).to eq([
+      '2019-03-05T08:46:42Z',
+      '2019-03-06T08:46:42Z'
+    ])
+  end
+
+  it 'uses body parameters when both body and query string parameters are present' do
+    response = response_for(
+      'headers' => { 'Content-Type' => 'application/json' },
+      'queryStringParameters' => {
+        'rrule' => 'FREQ=WEEKLY;COUNT=1',
+        'start_time' => '2020-01-01 00:00:00 -0800',
+        'end_time' => '2020-01-10 00:00:00 -0800'
+      },
+      'body' => JSON.generate(
+        'rrule' => 'FREQ=DAILY;COUNT=2',
+        'start_time' => '2019-03-05 00:46:42 -0800',
+        'end_time' => '2019-03-07 00:46:42 -0800'
+      )
+    )
+
+    expect(response[:statusCode]).to eq(200)
+    expect(response[:body]['occurrences']).to eq([
+      '2019-03-05T08:46:42Z',
+      '2019-03-06T08:46:42Z'
+    ])
+  end
+
+  it 'applies the requested time zone when expanding occurrences' do
+    response = response_for(
+      'headers' => { 'Content-Type' => 'application/json' },
+      'body' => JSON.generate(
+        'rrule' => 'FREQ=DAILY;COUNT=2',
+        'start_time' => '2019-03-05 00:46:42',
+        'end_time' => '2019-03-07 00:46:42',
+        'time_zone' => 'America/Los_Angeles'
+      )
+    )
+
+    expect(response[:statusCode]).to eq(200)
+    expect(response[:body]['occurrences']).to eq([
+      '2019-03-05T08:46:42Z',
+      '2019-03-06T08:46:42Z'
+    ])
+  end
+
   it 'returns structured errors for invalid JSON' do
     response = response_for(
       'headers' => { 'Content-Type' => 'application/json' },
@@ -86,6 +147,19 @@ RSpec.describe '#rrule_expand' do
     expect(response[:body]).to eq(
       'error' => 'invalid_json',
       'message' => 'Request body must be valid JSON'
+    )
+  end
+
+  it 'returns structured errors when JSON request bodies are not objects' do
+    response = response_for(
+      'headers' => { 'Content-Type' => 'application/json' },
+      'body' => JSON.generate(['FREQ=DAILY;COUNT=3'])
+    )
+
+    expect(response[:statusCode]).to eq(400)
+    expect(response[:body]).to eq(
+      'error' => 'invalid_json',
+      'message' => 'JSON request body must be an object'
     )
   end
 
@@ -165,6 +239,23 @@ RSpec.describe '#rrule_expand' do
     expect(response[:body]).to eq(
       'error' => 'invalid_time_range',
       'message' => 'end_time must be after start_time'
+    )
+  end
+
+  it 'returns structured errors for requests outside the supported 100 year boundary' do
+    response = response_for(
+      'headers' => { 'Content-Type' => 'application/json' },
+      'body' => JSON.generate(
+        'rrule' => 'FREQ=YEARLY;COUNT=1',
+        'start_time' => Time.now.utc.iso8601,
+        'end_time' => (Time.now.utc + BOUNDARY_SECONDS + 86_400).iso8601
+      )
+    )
+
+    expect(response[:statusCode]).to eq(422)
+    expect(response[:body]).to eq(
+      'error' => 'outside_supported_range',
+      'message' => 'start_time or end_time cannot be outside the supported 100 year boundary'
     )
   end
 end

@@ -53,8 +53,5 @@ DEPENDENCIES
   rrule (~> 0.8)
   rspec (~> 3.13)
 
-RUBY VERSION
-   ruby 3.0.4p208
-
 BUNDLED WITH
    2.2.33

@@ -22,7 +22,8 @@ RSpec.describe '#router' do
 
   it 'routes RRULE expansion requests' do
     response = routed_response_for(
-      'requestContext' => { 'http' => { 'method' => 'POST' } },
+      'routeKey' => 'POST /rrule_expand',
+      'requestContext' => { 'http' => { 'method' => 'POST' }, 'stage' => 'prod' },
       'rawPath' => '/rrule_expand',
       'headers' => { 'Content-Type' => 'application/json' },
       'body' => JSON.generate(
@@ -33,6 +34,32 @@ RSpec.describe '#router' do
 
     expect(response[:statusCode]).to eq(200)
     expect(response[:body]['occurrences']).to eq(['2019-03-05T08:46:42Z'])
+  end
+
+  it 'routes named-stage HTTP API events using routeKey' do
+    response = routed_response_for(
+      'routeKey' => 'POST /rrule_expand',
+      'requestContext' => { 'http' => { 'method' => 'POST' }, 'stage' => 'prod' },
+      'rawPath' => '/prod/rrule_expand',
+      'headers' => { 'Content-Type' => 'application/json' },
+      'body' => JSON.generate(
+        'rrule' => 'FREQ=DAILY;COUNT=1',
+        'start_time' => '2019-03-05 00:46:42 -0800'
+      )
+    )
+
+    expect(response[:statusCode]).to eq(200)
+    expect(response[:body]['occurrences']).to eq(['2019-03-05T08:46:42Z'])
+  end
+
+  it 'strips named-stage prefixes when falling back to path routing' do
+    response = routed_response_for(
+      'requestContext' => { 'http' => { 'method' => 'GET' }, 'stage' => 'prod' },
+      'rawPath' => '/prod/health'
+    )
+
+    expect(response[:statusCode]).to eq(200)
+    expect(response[:body]).to eq('message' => 'ok')
   end
 
   it 'returns not found for unknown routes' do
@@ -46,6 +73,19 @@ RSpec.describe '#router' do
       'error' => 'not_found',
       'message' => 'Route not found'
     )
+  end
+
+  it 'does not return app-level CORS headers' do
+    response = router(
+      event: {
+        'routeKey' => 'GET /health',
+        'requestContext' => { 'http' => { 'method' => 'GET' } },
+        'rawPath' => '/health'
+      },
+      context: nil
+    )
+
+    expect(response[:headers]).to eq('Content-Type' => 'application/json')
   end
 end
 

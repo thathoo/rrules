@@ -81,6 +81,8 @@ Requirements:
 
 The deployment creates AWS resources and may incur AWS costs. The default stack includes API Gateway throttling of 5 requests per second with a burst of 10, and Lambda reserved concurrency of 5 to cap runaway traffic.
 
+API Gateway owns CORS for the deployed API. The Lambda handler returns only application headers, which avoids duplicate CORS headers in real HTTP API responses.
+
 Deploy:
 
 ```sh

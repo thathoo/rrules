@@ -15,12 +15,12 @@ BOUNDARY_SECONDS = (100 * 365.25 * 24 * 60 * 60).to_i
 class InvalidJsonBody < StandardError; end
 
 def router(event:, context:)
+  route_key = request_route_key(event || {})
   method = request_method(event || {})
   path = request_path(event || {})
 
-  return json_response(204, {}) if method == 'OPTIONS'
-  return health_check(event: event, context: context) if method == 'GET' && path == '/health'
-  return rrule_expand(event: event, context: context) if method == 'POST' && path == '/rrule_expand'
+  return health_check(event: event, context: context) if route_key == 'GET /health' || (method == 'GET' && path == '/health')
+  return rrule_expand(event: event, context: context) if route_key == 'POST /rrule_expand' || (method == 'POST' && path == '/rrule_expand')
 
   json_response(404, error: 'not_found', message: 'Route not found')
 end
@@ -86,6 +86,13 @@ def request_params(event)
   query_params.merge(body_params)
 end
 
+def request_route_key(event)
+  event['routeKey'] ||
+    event[:routeKey] ||
+    event.dig('requestContext', 'routeKey') ||
+    event.dig(:requestContext, :routeKey)
+end
+
 def request_method(event)
   event.dig('requestContext', 'http', 'method') ||
     event.dig(:requestContext, :http, :method) ||
@@ -94,10 +101,19 @@ def request_method(event)
 end
 
 def request_path(event)
-  event['rawPath'] ||
+  path = event['rawPath'] ||
     event[:rawPath] ||
     event['path'] ||
     event[:path]
+
+  strip_stage_prefix(path, event)
+end
+
+def strip_stage_prefix(path, event)
+  stage = event.dig('requestContext', 'stage') || event.dig(:requestContext, :stage)
+  return path if blank?(path) || blank?(stage) || stage == '$default'
+
+  path.sub(%r{\A/#{Regexp.escape(stage)}(?=/|\z)}, '')
 end
 
 def parse_body(event)
@@ -164,10 +180,7 @@ def json_response(status_code, payload)
   {
     statusCode: status_code,
     headers: {
-      'Content-Type' => 'application/json',
-      'Access-Control-Allow-Origin' => '*',
-      'Access-Control-Allow-Headers' => 'content-type',
-      'Access-Control-Allow-Methods' => 'GET,POST,OPTIONS'
+      'Content-Type' => 'application/json'
     },
     body: JSON.generate(payload)
   }

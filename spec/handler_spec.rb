@@ -303,4 +303,23 @@ RSpec.describe '#rrule_expand' do
       'message' => 'start_time or end_time cannot be outside the supported 100 year boundary'
     )
   end
+
+  it 'returns structured errors when expansion exceeds the occurrence limit' do
+    stub_const('MAX_OCCURRENCES', 2)
+
+    response = response_for(
+      'headers' => { 'Content-Type' => 'application/json' },
+      'body' => JSON.generate(
+        'rrule' => 'FREQ=DAILY;COUNT=3',
+        'start_time' => '2019-03-05 00:46:42 -0800',
+        'end_time' => '2019-03-10 00:46:42 -0800'
+      )
+    )
+
+    expect(response[:statusCode]).to eq(422)
+    expect(response[:body]).to eq(
+      'error' => 'too_many_occurrences',
+      'message' => 'RRULE expansion is limited to 2 occurrences'
+    )
+  end
 end

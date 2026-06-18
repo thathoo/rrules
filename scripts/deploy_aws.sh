@@ -7,6 +7,9 @@ SERVICE_NAME="${SERVICE_NAME:-rrules-api}"
 ENVIRONMENT_NAME="${ENVIRONMENT_NAME:-prod}"
 AWS_REGION="${AWS_REGION:-${AWS_DEFAULT_REGION:-us-west-2}}"
 ARTIFACT_BUCKET="${ARTIFACT_BUCKET:-}"
+LAMBDA_RESERVED_CONCURRENCY="${LAMBDA_RESERVED_CONCURRENCY:-5}"
+API_THROTTLE_BURST_LIMIT="${API_THROTTLE_BURST_LIMIT:-10}"
+API_THROTTLE_RATE_LIMIT="${API_THROTTLE_RATE_LIMIT:-5}"
 
 if [[ -z "${ARTIFACT_BUCKET}" ]]; then
   echo "ARTIFACT_BUCKET is required. Example: ARTIFACT_BUCKET=my-lambda-artifacts-${AWS_REGION} scripts/deploy_aws.sh" >&2
@@ -38,7 +41,10 @@ aws cloudformation deploy \
     ServiceName="${SERVICE_NAME}" \
     EnvironmentName="${ENVIRONMENT_NAME}" \
     CodeS3Bucket="${ARTIFACT_BUCKET}" \
-    CodeS3Key="${ZIP_KEY}"
+    CodeS3Key="${ZIP_KEY}" \
+    LambdaReservedConcurrentExecutions="${LAMBDA_RESERVED_CONCURRENCY}" \
+    ApiThrottleBurstLimit="${API_THROTTLE_BURST_LIMIT}" \
+    ApiThrottleRateLimit="${API_THROTTLE_RATE_LIMIT}"
 
 aws cloudformation describe-stacks \
   --region "${AWS_REGION}" \

@@ -57,6 +57,8 @@ Error responses use a structured JSON body:
 
 Supported requests must stay within a 100 year boundary from the request time.
 
+Successful responses are limited to 10,000 occurrences. Requests that would expand beyond that limit return `too_many_occurrences`.
+
 ### Development
 
 Use Ruby 3.0 or newer.
@@ -77,12 +79,22 @@ Requirements:
 - `zip`
 - AWS credentials with access to Lambda, API Gateway, CloudFormation, IAM, S3, and CloudWatch Logs
 
+The deployment creates AWS resources and may incur AWS costs. The default stack includes API Gateway throttling of 5 requests per second with a burst of 10, and Lambda reserved concurrency of 5 to cap runaway traffic.
+
 Deploy:
 
 ```sh
 export AWS_REGION=us-west-2
 export ARTIFACT_BUCKET=rrules-api-artifacts-us-west-2
 scripts/deploy_aws.sh
+```
+
+Optional limit overrides:
+
+```sh
+export API_THROTTLE_RATE_LIMIT=5
+export API_THROTTLE_BURST_LIMIT=10
+export LAMBDA_RESERVED_CONCURRENCY=5
 ```
 
 The deploy script prints the `ApiBaseUrl`, `RRuleExpandUrl`, and `HealthUrl` CloudFormation outputs. Use `RRuleExpandUrl` as the public API endpoint.

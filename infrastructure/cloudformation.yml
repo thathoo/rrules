@@ -18,6 +18,21 @@ Parameters:
     AllowedValues:
       - ruby3.4
       - ruby3.3
+  LambdaReservedConcurrentExecutions:
+    Type: Number
+    Default: 5
+    MinValue: 1
+    Description: Maximum concurrent Lambda executions reserved for this API.
+  ApiThrottleBurstLimit:
+    Type: Number
+    Default: 10
+    MinValue: 1
+    Description: API Gateway burst request limit for the stage.
+  ApiThrottleRateLimit:
+    Type: Number
+    Default: 5
+    MinValue: 1
+    Description: API Gateway steady-state requests per second limit for the stage.
 
 Resources:
   FunctionRole:
@@ -48,6 +63,7 @@ Resources:
         S3Bucket: !Ref CodeS3Bucket
         S3Key: !Ref CodeS3Key
       MemorySize: 256
+      ReservedConcurrentExecutions: !Ref LambdaReservedConcurrentExecutions
       Timeout: 10
 
   FunctionLogGroup:
@@ -100,6 +116,9 @@ Resources:
       ApiId: !Ref HttpApi
       StageName: !Ref EnvironmentName
       AutoDeploy: true
+      DefaultRouteSettings:
+        ThrottlingBurstLimit: !Ref ApiThrottleBurstLimit
+        ThrottlingRateLimit: !Ref ApiThrottleRateLimit
 
   ApiInvokePermission:
     Type: AWS::Lambda::Permission

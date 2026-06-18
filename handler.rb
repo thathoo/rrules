@@ -8,6 +8,7 @@ require 'rrule'
 
 DEFAULT_TIME_ZONE = 'UTC'
 DEFAULT_END_TIME_SECONDS = 365 * 24 * 60 * 60
+MAX_OCCURRENCES = 10_000
 # Approximate range guard to keep recurrence expansion bounded.
 BOUNDARY_SECONDS = (100 * 365.25 * 24 * 60 * 60).to_i
 
@@ -52,7 +53,17 @@ def rrule_expand(event:, context:)
   end
 
   rule = RRule::Rule.new(params['rrule'], tzid: time_zone, dtstart: start_time)
-  occurrences = rule.between(start_time, end_time).map { |time| time.utc.iso8601 }
+  occurrences = rule.between(start_time, end_time, limit: MAX_OCCURRENCES + 1)
+
+  if occurrences.size > MAX_OCCURRENCES
+    return json_response(
+      422,
+      error: 'too_many_occurrences',
+      message: "RRULE expansion is limited to #{MAX_OCCURRENCES} occurrences"
+    )
+  end
+
+  occurrences = occurrences.map { |time| time.utc.iso8601 }
 
   json_response(200, message: 'ok', occurrences: occurrences)
 rescue JSON::ParserError

@@ -13,6 +13,21 @@ BOUNDARY_SECONDS = (100 * 365.25 * 24 * 60 * 60).to_i
 
 class InvalidJsonBody < StandardError; end
 
+def router(event:, context:)
+  method = request_method(event || {})
+  path = request_path(event || {})
+
+  return json_response(204, {}) if method == 'OPTIONS'
+  return health_check(event: event, context: context) if method == 'GET' && path == '/health'
+  return rrule_expand(event: event, context: context) if method == 'POST' && path == '/rrule_expand'
+
+  json_response(404, error: 'not_found', message: 'Route not found')
+end
+
+def health_check(event:, context:)
+  json_response(200, message: 'ok')
+end
+
 def rrule_expand(event:, context:)
   params = request_params(event || {})
 
@@ -58,6 +73,20 @@ def request_params(event)
   body_params = parse_body(event)
 
   query_params.merge(body_params)
+end
+
+def request_method(event)
+  event.dig('requestContext', 'http', 'method') ||
+    event.dig(:requestContext, :http, :method) ||
+    event['httpMethod'] ||
+    event[:httpMethod]
+end
+
+def request_path(event)
+  event['rawPath'] ||
+    event[:rawPath] ||
+    event['path'] ||
+    event[:path]
 end
 
 def parse_body(event)
@@ -125,7 +154,9 @@ def json_response(status_code, payload)
     statusCode: status_code,
     headers: {
       'Content-Type' => 'application/json',
-      'Access-Control-Allow-Origin' => '*'
+      'Access-Control-Allow-Origin' => '*',
+      'Access-Control-Allow-Headers' => 'content-type',
+      'Access-Control-Allow-Methods' => 'GET,POST,OPTIONS'
     },
     body: JSON.generate(payload)
   }

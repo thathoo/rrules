@@ -4,6 +4,51 @@ require 'uri'
 
 require_relative '../handler'
 
+RSpec.describe '#router' do
+  def routed_response_for(event)
+    response = router(event: event, context: nil)
+    response.merge(body: JSON.parse(response[:body]))
+  end
+
+  it 'routes health checks' do
+    response = routed_response_for(
+      'requestContext' => { 'http' => { 'method' => 'GET' } },
+      'rawPath' => '/health'
+    )
+
+    expect(response[:statusCode]).to eq(200)
+    expect(response[:body]).to eq('message' => 'ok')
+  end
+
+  it 'routes RRULE expansion requests' do
+    response = routed_response_for(
+      'requestContext' => { 'http' => { 'method' => 'POST' } },
+      'rawPath' => '/rrule_expand',
+      'headers' => { 'Content-Type' => 'application/json' },
+      'body' => JSON.generate(
+        'rrule' => 'FREQ=DAILY;COUNT=1',
+        'start_time' => '2019-03-05 00:46:42 -0800'
+      )
+    )
+
+    expect(response[:statusCode]).to eq(200)
+    expect(response[:body]['occurrences']).to eq(['2019-03-05T08:46:42Z'])
+  end
+
+  it 'returns not found for unknown routes' do
+    response = routed_response_for(
+      'requestContext' => { 'http' => { 'method' => 'GET' } },
+      'rawPath' => '/missing'
+    )
+
+    expect(response[:statusCode]).to eq(404)
+    expect(response[:body]).to eq(
+      'error' => 'not_found',
+      'message' => 'Route not found'
+    )
+  end
+end
+
 RSpec.describe '#rrule_expand' do
   def response_for(event)
     response = rrule_expand(event: event, context: nil)

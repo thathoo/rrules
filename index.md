@@ -1,9 +1,15 @@
 ## Expand RRULEs via API
 
-Get individual occurrences of an RRULE directly via API (`api.rrules.com`). The API backend is deployed on AWS Lambda, and relies on the [ruby-rrule](https://github.com/square/ruby-rrule) gem.
+Get individual occurrences of an RRULE directly via API. The API backend is deployed on AWS Lambda behind API Gateway, and relies on the [ruby-rrule](https://github.com/square/ruby-rrule) gem.
+
+The production URL is an AWS-managed API Gateway URL:
+
+```text
+https://<api-id>.execute-api.<region>.amazonaws.com/prod
+```
 
 ```sh
-curl -X POST https://api.rrules.com/rrule_expand \
+curl -X POST https://<api-id>.execute-api.<region>.amazonaws.com/prod/rrule_expand \
   -H 'Content-Type: application/json' \
   -d '{"rrule":"FREQ=DAILY;COUNT=3","start_time":"2019-03-05 00:46:42 -0800","end_time":"2019-06-05 00:46:42 -0800"}'
 ```
@@ -60,6 +66,27 @@ bundle install
 bundle exec rspec
 ```
 
+### Deployment
+
+This project deploys to AWS Lambda and API Gateway HTTP API without a custom domain. The generated endpoint uses API Gateway's default `execute-api` hostname.
+
+Requirements:
+
+- AWS CLI v2
+- Docker
+- `zip`
+- AWS credentials with access to Lambda, API Gateway, CloudFormation, IAM, S3, and CloudWatch Logs
+
+Deploy:
+
+```sh
+export AWS_REGION=us-west-2
+export ARTIFACT_BUCKET=rrules-api-artifacts-us-west-2
+scripts/deploy_aws.sh
+```
+
+The deploy script prints the `ApiBaseUrl`, `RRuleExpandUrl`, and `HealthUrl` CloudFormation outputs. Use `RRuleExpandUrl` as the public API endpoint.
+
 ### Support or Contact
 
-Having trouble with the API? Please create an issue and I will do my best to be responsive, quickly. If you plan to hit the API with more than a couple thousand requests a day, please let me know first.
+Having trouble with the API? Please create an issue and I will do my best to be responsive. If you plan to hit the API with more than a couple thousand requests a day, please let me know first.

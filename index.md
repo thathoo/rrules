@@ -1,9 +1,15 @@
 ## Expand RRULEs via API
 
-Get individual occurrences of an RRULE directly via API (`api.rrules.com`). The API backend is deployed on AWS Lambda, and relies on the [ruby-rrule](https://github.com/square/ruby-rrule) gem.
+Get individual occurrences of an RRULE directly via API. The API backend is deployed on AWS Lambda behind API Gateway, and relies on the [ruby-rrule](https://github.com/square/ruby-rrule) gem.
+
+The production URL is an AWS-managed API Gateway URL:
+
+```text
+https://<api-id>.execute-api.<region>.amazonaws.com/prod
+```
 
 ```sh
-curl -X POST https://api.rrules.com/rrule_expand \
+curl -X POST https://<api-id>.execute-api.<region>.amazonaws.com/prod/rrule_expand \
   -H 'Content-Type: application/json' \
   -d '{"rrule":"FREQ=DAILY;COUNT=3","start_time":"2019-03-05 00:46:42 -0800","end_time":"2019-06-05 00:46:42 -0800"}'
 ```
@@ -51,6 +57,8 @@ Error responses use a structured JSON body:
 
 Supported requests must stay within a 100 year boundary from the request time.
 
+Successful responses are limited to 10,000 occurrences. Requests that would expand beyond that limit return `too_many_occurrences`.
+
 ### Development
 
 Use Ruby 3.0 or newer.
@@ -60,6 +68,39 @@ bundle install
 bundle exec rspec
 ```
 
+### Deployment
+
+This project deploys to AWS Lambda and API Gateway HTTP API without a custom domain. The generated endpoint uses API Gateway's default `execute-api` hostname.
+
+Requirements:
+
+- AWS CLI v2
+- Docker
+- `zip`
+- AWS credentials with access to Lambda, API Gateway, CloudFormation, IAM, S3, and CloudWatch Logs
+
+The deployment creates AWS resources and may incur AWS costs. The default stack includes API Gateway throttling of 5 requests per second with a burst of 10, and Lambda reserved concurrency of 5 to cap runaway traffic.
+
+API Gateway owns CORS for the deployed API. The Lambda handler returns only application headers, which avoids duplicate CORS headers in real HTTP API responses.
+
+Deploy:
+
+```sh
+export AWS_REGION=us-west-2
+export ARTIFACT_BUCKET=rrules-api-artifacts-us-west-2
+scripts/deploy_aws.sh
+```
+
+Optional limit overrides:
+
+```sh
+export API_THROTTLE_RATE_LIMIT=5
+export API_THROTTLE_BURST_LIMIT=10
+export LAMBDA_RESERVED_CONCURRENCY=5
+```
+
+The deploy script prints the `ApiBaseUrl`, `RRuleExpandUrl`, and `HealthUrl` CloudFormation outputs. Use `RRuleExpandUrl` as the public API endpoint.
+
 ### Support or Contact
 
-Having trouble with the API? Please create an issue and I will do my best to be responsive, quickly. If you plan to hit the API with more than a couple thousand requests a day, please let me know first.
+Having trouble with the API? Please create an issue and I will do my best to be responsive. If you plan to hit the API with more than a couple thousand requests a day, please let me know first.

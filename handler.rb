@@ -8,10 +8,26 @@ require 'rrule'
 
 DEFAULT_TIME_ZONE = 'UTC'
 DEFAULT_END_TIME_SECONDS = 365 * 24 * 60 * 60
+MAX_OCCURRENCES = 10_000
 # Approximate range guard to keep recurrence expansion bounded.
 BOUNDARY_SECONDS = (100 * 365.25 * 24 * 60 * 60).to_i
 
 class InvalidJsonBody < StandardError; end
+
+def router(event:, context:)
+  route_key = request_route_key(event || {})
+  method = request_method(event || {})
+  path = request_path(event || {})
+
+  return health_check(event: event, context: context) if route_key == 'GET /health' || (method == 'GET' && path == '/health')
+  return rrule_expand(event: event, context: context) if route_key == 'POST /rrule_expand' || (method == 'POST' && path == '/rrule_expand')
+
+  json_response(404, error: 'not_found', message: 'Route not found')
+end
+
+def health_check(event:, context:)
+  json_response(200, message: 'ok')
+end
 
 def rrule_expand(event:, context:)
   params = request_params(event || {})
@@ -37,7 +53,17 @@ def rrule_expand(event:, context:)
   end
 
   rule = RRule::Rule.new(params['rrule'], tzid: time_zone, dtstart: start_time)
-  occurrences = rule.between(start_time, end_time).map { |time| time.utc.iso8601 }
+  occurrences = rule.between(start_time, end_time, limit: MAX_OCCURRENCES + 1)
+
+  if occurrences.size > MAX_OCCURRENCES
+    return json_response(
+      422,
+      error: 'too_many_occurrences',
+      message: "RRULE expansion is limited to #{MAX_OCCURRENCES} occurrences"
+    )
+  end
+
+  occurrences = occurrences.map { |time| time.utc.iso8601 }
 
   json_response(200, message: 'ok', occurrences: occurrences)
 rescue JSON::ParserError
@@ -58,6 +84,36 @@ def request_params(event)
   body_params = parse_body(event)
 
   query_params.merge(body_params)
+end
+
+def request_route_key(event)
+  event['routeKey'] ||
+    event[:routeKey] ||
+    event.dig('requestContext', 'routeKey') ||
+    event.dig(:requestContext, :routeKey)
+end
+
+def request_method(event)
+  event.dig('requestContext', 'http', 'method') ||
+    event.dig(:requestContext, :http, :method) ||
+    event['httpMethod'] ||
+    event[:httpMethod]
+end
+
+def request_path(event)
+  path = event['rawPath'] ||
+    event[:rawPath] ||
+    event['path'] ||
+    event[:path]
+
+  strip_stage_prefix(path, event)
+end
+
+def strip_stage_prefix(path, event)
+  stage = event.dig('requestContext', 'stage') || event.dig(:requestContext, :stage)
+  return path if blank?(path) || blank?(stage) || stage == '$default'
+
+  path.sub(%r{\A/#{Regexp.escape(stage)}(?=/|\z)}, '')
 end
 
 def parse_body(event)
@@ -124,8 +180,7 @@ def json_response(status_code, payload)
   {
     statusCode: status_code,
     headers: {
-      'Content-Type' => 'application/json',
-      'Access-Control-Allow-Origin' => '*'
+      'Content-Type' => 'application/json'
     },
     body: JSON.generate(payload)
   }
